@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">AI Health Assistant</string>
+    <string name="onboarding_title">আপনার তথ্য দিন</string>
+    <string name="chat_disclaimer">এই সহায়ক ডাক্তার নয়। এটি শুধু প্রাথমিক ধারণা দেয়, রোগ নির্ণয় বা চিকিৎসা নয়। গুরুতর বা জরুরি উপসর্গে অবিলম্বে ডাক্তার বা হাসপাতালে যোগাযোগ করুন।</string>
+</resources>
