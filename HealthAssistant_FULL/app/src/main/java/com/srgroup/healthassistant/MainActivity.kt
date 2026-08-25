@@ -3,6 +3,8 @@ package com.srgroup.healthassistant
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -17,6 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -33,6 +36,7 @@ import com.srgroup.healthassistant.ui.history.HealthHistoryScreen
 import com.srgroup.healthassistant.ui.logging.VitalLogScreen
 import com.srgroup.healthassistant.ui.medication.MedicationScreen
 import com.srgroup.healthassistant.ui.onboarding.OnboardingScreen
+import com.srgroup.healthassistant.ui.splash.SplashScreen
 import com.srgroup.healthassistant.ui.theme.HealthAssistantTheme
 
 private data class BottomTab(
@@ -45,7 +49,7 @@ private val bottomTabs = listOf(
     BottomTab("chat",       "চ্যাট",        Icons.Filled.Chat),
     BottomTab("medication", "ওষুধ",         Icons.Filled.MedicalServices),
     BottomTab("logging",    "দৈনিক লগ",     Icons.Filled.MonitorHeart),
-    BottomTab("history",    "রেকর্ড",       Icons.Filled.History),
+    BottomTab("history",   "রেকর্ড",        Icons.Filled.History),
     BottomTab("doctor",     "ডাক্তার",      Icons.Filled.LocalHospital),
     BottomTab("admin",      "অ্যাডমিন",     Icons.Filled.AdminPanelSettings)
 )
@@ -55,12 +59,22 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             HealthAssistantTheme {
+
+                // Splash state
+                var showSplash by remember { mutableStateOf(true) }
+
+                // Show splash first
+                if (showSplash) {
+                    SplashScreen(onFinished = { showSplash = false })
+                    return@HealthAssistantTheme
+                }
+
                 val vm: MainViewModel = viewModel(factory = MainViewModel.factory(applicationContext))
                 val doctorVm: DoctorViewModel = viewModel(factory = DoctorViewModel.factory(applicationContext))
                 val adminVm: AdminViewModel = viewModel(factory = AdminViewModel.factory(applicationContext))
                 val onboardingDone by vm.onboardingDone.collectAsState()
 
-                // Splash while checking DB for existing patient
+                // DB check loading
                 if (onboardingDone == null) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
@@ -80,8 +94,20 @@ class MainActivity : ComponentActivity() {
                         if (!hideBar) {
                             NavigationBar {
                                 bottomTabs.forEach { tab ->
+                                    val selected = currentRoute?.hierarchy?.any { it.route == tab.route } == true
+
+                                    // Animated icon scale on selection
+                                    val iconScale by animateFloatAsState(
+                                        targetValue = if (selected) 1.2f else 1f,
+                                        animationSpec = spring(
+                                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                                            stiffness = Spring.StiffnessMedium
+                                        ),
+                                        label = "iconScale_${tab.route}"
+                                    )
+
                                     NavigationBarItem(
-                                        selected = currentRoute?.hierarchy?.any { it.route == tab.route } == true,
+                                        selected = selected,
                                         onClick = {
                                             navController.navigate(tab.route) {
                                                 popUpTo(navController.graph.findStartDestination().id) { saveState = true }
@@ -89,7 +115,13 @@ class MainActivity : ComponentActivity() {
                                                 restoreState = true
                                             }
                                         },
-                                        icon = { Icon(tab.icon, contentDescription = tab.label) },
+                                        icon = {
+                                            Icon(
+                                                tab.icon,
+                                                contentDescription = tab.label,
+                                                modifier = Modifier.scale(iconScale)
+                                            )
+                                        },
                                         label = { Text(tab.label) }
                                     )
                                 }
@@ -100,7 +132,24 @@ class MainActivity : ComponentActivity() {
                     NavHost(
                         navController = navController,
                         startDestination = if (onboardingDone == true) "chat" else "onboarding",
-                        modifier = Modifier.padding(padding)
+                        modifier = Modifier.padding(padding),
+                        // Screen transition animations
+                        enterTransition = {
+                            fadeIn(tween(280, easing = EaseOut)) +
+                            slideInHorizontally(tween(280, easing = EaseOut)) { it / 6 }
+                        },
+                        exitTransition = {
+                            fadeOut(tween(200, easing = EaseIn)) +
+                            slideOutHorizontally(tween(200, easing = EaseIn)) { -it / 6 }
+                        },
+                        popEnterTransition = {
+                            fadeIn(tween(280, easing = EaseOut)) +
+                            slideInHorizontally(tween(280, easing = EaseOut)) { -it / 6 }
+                        },
+                        popExitTransition = {
+                            fadeOut(tween(200, easing = EaseIn)) +
+                            slideOutHorizontally(tween(200, easing = EaseIn)) { it / 6 }
+                        }
                     ) {
                         composable("onboarding") {
                             OnboardingScreen { form ->
